@@ -2,12 +2,14 @@ package com.example.mygallery;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.database.Cursor;
 
 import android.util.DisplayMetrics;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AbsListView;
+import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.GridView;
 import android.widget.ImageView;
@@ -85,6 +87,8 @@ public class PicturesInDateAdapter extends RecyclerView.Adapter<PicturesInDateAd
             holder.txtSetHeight.setHeight(gridViewHeight);
             holder.txtNumItems.setText(numItems + " items");
             holder.GridPhotoItems.setNumColumns(numCol);
+            holder.GridPhotoItems.setMinimumHeight(gridViewHeight);
+
 
             PicturesAdapter pa = new PicturesAdapter(context, PictureInADate.get(position), ScreenWidth/numCol);
             holder.GridPhotoItems.setAdapter(pa);

@@ -1,6 +1,7 @@
 package com.example.mygallery;
 
 import android.content.Context;
+import android.content.Intent;
 import android.database.Cursor;
 import android.view.View;
 import android.view.ViewGroup;
@@ -27,6 +28,9 @@ public class PicturesAdapter extends BaseAdapter {
     Context context;
     int imgViewWidth;
     ArrayList<String> path;
+    static final int _CHECKER = 1;
+    static final int _UNCHECKER = 0;
+
 
     @Override
     public int getCount() {
@@ -48,10 +52,45 @@ public class PicturesAdapter extends BaseAdapter {
         View view;
         view = View.inflate(parent.getContext(), R.layout.grid_photos_items, null);
         ImageView imgGridPic = view.findViewById(R.id.imgGridPic);
+        ImageView imgCheckIcon = view.findViewById(R.id.imgCheckIcon);
+
         imgGridPic.getLayoutParams().height = imgViewWidth;
         imgGridPic.getLayoutParams().width = imgViewWidth;
+
+        imgCheckIcon.getLayoutParams().height = imgViewWidth/5;
+        imgCheckIcon.getLayoutParams().width = imgViewWidth/5;
+
         imgGridPic.requestLayout();
+        imgCheckIcon.requestLayout();
         Glide.with(context).load(path.get(position)).centerCrop().into(imgGridPic);
+
+        Glide.with(context).load(R.drawable.ic_baseline_unchecked_24).centerCrop().into(imgCheckIcon);
+
+
+        if(MainActivity.isSelected()){
+            imgCheckIcon.setVisibility(View.VISIBLE);
+        }
+
+        imgGridPic.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(MainActivity.isSelected()){
+                    if (MainActivity.deletePath.contains(path.get(position))) {
+                        Glide.with(context).load(R.drawable.ic_baseline_unchecked_24).centerCrop().into(imgCheckIcon);
+                        MainActivity.deletePath.remove(path.get(position));
+
+                    }else{
+                        Glide.with(context).load(R.drawable.ic_baseline_check_24).centerCrop().into(imgCheckIcon);
+                        MainActivity.deletePath.add(path.get(position));
+                    }
+                }else {
+                    Intent intent = new Intent(context, ShowSinglePicture.class);
+                    intent.putExtra("picPath",path.get(position) );
+                    context.startActivity(intent);
+                }
+
+            }
+        });
         return view;
     }
 }

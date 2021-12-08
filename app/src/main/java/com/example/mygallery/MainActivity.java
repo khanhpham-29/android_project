@@ -1,10 +1,10 @@
 package com.example.mygallery;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.StaggeredGridLayoutManager;
 
@@ -13,59 +13,58 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
+import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.text.Html;
 import android.util.DisplayMetrics;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewGroup;
-import android.widget.GridView;
-import android.widget.ListAdapter;
-import android.widget.ListView;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
-import android.widget.Toast;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Date;
 
 public class MainActivity extends AppCompatActivity {
     RadioGroup radioGroup;
     RadioButton radioBtnPhotos, radioBtnFolder, radioBtnVideos;
- //   ListView LVPhotos;
     RecyclerView LVPhotos;
     RecyclerView GVFolders;
     RecyclerView LVVideos;
+    PicturesInDateAdapter picturesInDateAdapter;
+    PicturesInFolderAdapter picturesInFolderAdapter;
+    VideosInDateAdapter videosInDateAdapter;
+    static boolean isSelectedLayout;
+    static ArrayList<String> deletePath;
     int colorSelected;
     int colorNormal;
     RadioButton previousBtn;
     View previousView;
     Cursor photosPath;
     Cursor videosPath;
+    Menu main_menu;
 
+    static boolean  isSelected(){
+        return isSelectedLayout;
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        //Check permission
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 611);
-        }
 
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 611);
-        }
+        ActionBar actionBar = getSupportActionBar();
+        actionBar.setDisplayShowHomeEnabled(true);
+        actionBar.setIcon(R.mipmap.ic_launcher);
+        actionBar.setTitle(Html.fromHtml("<font color='#000000'>My Gallery </font>"));
 
-        //connect xml with java obj
-        radioGroup = (RadioGroup) findViewById(R.id.radioGroup);
-        radioBtnPhotos = (RadioButton) findViewById(R.id.radioBtnPhotos);
-        radioBtnFolder = (RadioButton) findViewById(R.id.radioBtnFolder);
-        radioBtnVideos = (RadioButton) findViewById(R.id.radioBtnVideos);
-        LVPhotos = (RecyclerView) findViewById(R.id.LVPhotos);
-        GVFolders = (RecyclerView) findViewById(R.id.GVFolders);
-        LVVideos = (RecyclerView) findViewById(R.id.LVVideos);
+        bindWidget();
+
+        //init
+        deletePath = new ArrayList<>();
         colorSelected = ContextCompat.getColor(this, R.color.blue_selected);
         colorNormal = ContextCompat.getColor(this, R.color.grey);
 
@@ -74,46 +73,13 @@ public class MainActivity extends AppCompatActivity {
         previousBtn = radioBtnPhotos;
         setBtnIconColor(radioBtnPhotos, colorSelected);
         previousView = LVPhotos;
-        photosPath = getAllShownPhotosPath();
 
-        //get Devide size
-        DisplayMetrics displayMetrics = new DisplayMetrics();
-        getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
-        int width = displayMetrics.widthPixels;
-
-        //Load pictures to LVPhotos
-        PicturesInDateAdapter pa = new PicturesInDateAdapter(photosPath, this, width);
-        LVPhotos.setAdapter(pa);
-        StaggeredGridLayoutManager gridLayoutManager =
-                new StaggeredGridLayoutManager(1, StaggeredGridLayoutManager.VERTICAL);
-        LVPhotos.setLayoutManager(gridLayoutManager);
-
-        //Load pictures to GVFolders
-        PicturesInFolderAdapter pFa = new PicturesInFolderAdapter(photosPath, this, width);
-        GVFolders.setAdapter(pFa);
-        StaggeredGridLayoutManager gridLayoutManager2 =
-                new StaggeredGridLayoutManager(1, StaggeredGridLayoutManager.VERTICAL);
-        GVFolders.setLayoutManager(gridLayoutManager2);
-
-        String a = new String();
-        for (int i = 0; i <  pFa.sortedArrPath.size(); i++) {
-            File file = new File( pFa.sortedArrPath.get(i));
-            a = a+"\n" + file.getParent();
-
+        while (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED)
+        {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE }, PackageManager.PERMISSION_GRANTED);
         }
-
-        Toast.makeText(this, "" + a, Toast.LENGTH_LONG).show();
-
-        //Load videos to LVVideos
-        videosPath =  getAllShownVideosPath();
-        VideosInDateAdapter va = new VideosInDateAdapter(videosPath, this, width);
-        LVVideos.setAdapter(va);
-        StaggeredGridLayoutManager gridLayoutManager1 =
-                new StaggeredGridLayoutManager(1, StaggeredGridLayoutManager.VERTICAL);
-        LVVideos.setLayoutManager(gridLayoutManager1);
-
-
-
+        loadMediaToView();
         radioGroup.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(RadioGroup group, int checkedId) {
@@ -140,11 +106,104 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == 611 && grantResults[0] == PackageManager.PERMISSION_DENIED) {
-            finish();
+    public boolean onCreateOptionsMenu(Menu menu) {
+        main_menu = menu;
+        getMenuInflater().inflate(R.menu.main_menu, main_menu);
+
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        if(item.getItemId() == R.id.menuSetting)
+        {
         }
+        else if(item.getItemId() == R.id.menuSelect)
+        {
+            isSelectedLayout = true;
+            main_menu.clear();
+            getMenuInflater().inflate(R.menu.delete_menu, main_menu);
+            radioGroup.setVisibility(View.INVISIBLE);
+            loadMediaToView();
+        }
+        else if (item.getItemId() == R.id.menuDelete)
+        {
+            isSelectedLayout = false;
+            main_menu.clear();
+            getMenuInflater().inflate(R.menu.main_menu, main_menu);
+            radioGroup.setVisibility(View.VISIBLE);
+            deleteMedia();
+            loadMediaToView();
+            deletePath.clear();
+        }
+        else if(item.getItemId() == R.id.menuCancel)
+        {
+            isSelectedLayout = false;
+            main_menu.clear();
+            getMenuInflater().inflate(R.menu.main_menu, main_menu);
+            radioGroup.setVisibility(View.VISIBLE);
+            //picturesInDateAdapter.notifyDataSetChanged();
+            deletePath.clear();
+        }
+        return true;
+    }
+
+    public void deleteMedia() {
+        for (int i = 0; i < deletePath.size(); i++) {
+            String path = deletePath.get(i);
+            File file = new File(path);
+            file.delete();
+
+            final Uri uri = MediaStore.Files.getContentUri("external");
+            getContentResolver().delete(uri,
+                    MediaStore.Files.FileColumns.DATA + "=?", new String[]{path});
+        }
+    }
+
+    private void bindWidget(){
+        //connect xml with java obj
+        radioGroup = (RadioGroup) findViewById(R.id.radioGroup);
+        radioBtnPhotos = (RadioButton) findViewById(R.id.radioBtnPhotos);
+        radioBtnFolder = (RadioButton) findViewById(R.id.radioBtnFolder);
+        radioBtnVideos = (RadioButton) findViewById(R.id.radioBtnVideos);
+        LVPhotos = (RecyclerView) findViewById(R.id.LVPhotos);
+        GVFolders = (RecyclerView) findViewById(R.id.GVFolders);
+        LVVideos = (RecyclerView) findViewById(R.id.LVVideos);
+    }
+
+    private void loadMediaToView(){
+        if(ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED)
+        {
+            return;
+        }
+        //get Devide size
+        DisplayMetrics displayMetrics = new DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
+        int width = displayMetrics.widthPixels;
+
+        //Load pictures to LVPhotos
+        photosPath = getAllShownPhotosPath();
+        picturesInDateAdapter = new PicturesInDateAdapter(photosPath, this, width);
+        LVPhotos.setAdapter(picturesInDateAdapter);
+        StaggeredGridLayoutManager gridLayoutManager =
+                new StaggeredGridLayoutManager(1, StaggeredGridLayoutManager.VERTICAL);
+        LVPhotos.setLayoutManager(gridLayoutManager);
+
+        //Load pictures to GVFolders
+        picturesInFolderAdapter = new PicturesInFolderAdapter(photosPath, this, width);
+        GVFolders.setAdapter(picturesInFolderAdapter);
+        StaggeredGridLayoutManager gridLayoutManager2 =
+                new StaggeredGridLayoutManager(1, StaggeredGridLayoutManager.VERTICAL);
+        GVFolders.setLayoutManager(gridLayoutManager2);
+
+        //Load videos to LVVideos
+        videosPath =  getAllShownVideosPath();
+        videosInDateAdapter = new VideosInDateAdapter(videosPath, this, width);
+        LVVideos.setAdapter(videosInDateAdapter);
+        StaggeredGridLayoutManager gridLayoutManager1 =
+                new StaggeredGridLayoutManager(1, StaggeredGridLayoutManager.VERTICAL);
+        LVVideos.setLayoutManager(gridLayoutManager1);
     }
 
     private void setBtnIconColor(RadioButton radioButton, int color) {
@@ -163,8 +222,5 @@ public class MainActivity extends AppCompatActivity {
         Cursor cs = getContentResolver().query(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, filePathColumn, null, null, null);
         return cs;
     }
-
-
-
 
 }

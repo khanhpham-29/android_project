@@ -1,11 +1,13 @@
 package com.example.mygallery;
 
 import android.content.Context;
+import android.content.Intent;
 import android.database.Cursor;
 
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AbsListView;
+import android.widget.AdapterView;
 import android.widget.GridView;
 import android.widget.TextView;
 
@@ -78,6 +80,11 @@ public class PicturesInFolderAdapter extends RecyclerView.Adapter<PicturesInFold
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+        if(PictureInFolder.get(position).size() == 0)
+        {
+            holder.itemView.setLayoutParams(new AbsListView.LayoutParams(-1, 1));
+            return;
+        }
         String path = PictureInFolder.get(position).get(0);
 
         File file = new File(path);
@@ -105,6 +112,15 @@ public class PicturesInFolderAdapter extends RecyclerView.Adapter<PicturesInFold
         holder.GridFolderPhotoItems.setAdapter(pa);
         pa.notifyDataSetChanged();
 
+        holder.GridFolderPhotoItems.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int pos, long id) {
+                String picPath = PictureInFolder.get(holder.getAdapterPosition()).get(pos);
+                Intent intent = new Intent(context, ShowSinglePicture.class);
+                intent.putExtra("picPath",picPath );
+                context.startActivity(intent);
+            }
+        });
 
     }
 
